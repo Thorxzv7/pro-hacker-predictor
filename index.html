@@ -3,29 +3,81 @@
 <head>
   <title>Pro Hacker Predictor</title>
   <style>
-    body { font-family: Arial; background: #111; color: white; text-align: center; padding: 40px; }
-    input, button { padding: 10px; margin: 10px; font-size: 16px; }
-    #result { font-size: 24px; margin-top: 20px; color: #00ff00; }
+    body {
+      background-color: #000;
+      color: #0f0;
+      font-family: monospace;
+      text-align: center;
+      padding-top: 100px;
+    }
+    input, button {
+      padding: 10px;
+      font-size: 18px;
+      border-radius: 8px;
+      border: none;
+    }
+    input {
+      width: 300px;
+    }
+    button {
+      background-color: #0f0;
+      color: #000;
+      cursor: pointer;
+    }
+    #output {
+      margin-top: 30px;
+      font-size: 22px;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
-  <h1>🔥 Pro Hacker Color Predictor 🔥</h1>
-  <p>Enter last results (example: R,G,G,B,R)</p>
-  <input type="text" id="input" placeholder="e.g., R,G,G,B">
-  <br>
-  <button onclick="predict()">Predict Next</button>
-  <div id="result"></div>
+  <h1>🧠 Pro Hacker Predictor</h1>
+  <p>Enter recent results (e.g., R,G,B,R,G):</p>
+  <input type="text" id="historyInput" placeholder="R,G,B,R,G" />
+  <br><br>
+  <button onclick="predict()">🔍 Predict</button>
+  <div id="output"></div>
+
   <script>
     function predict() {
-      const input = document.getElementById("input").value.trim().toUpperCase().split(',');
-      if (input.length < 3) {
-        document.getElementById("result").innerText = "Enter at least 3 results.";
+      const input = document.getElementById("historyInput").value.toUpperCase().trim();
+      const history = input.split(',').filter(c => ['R', 'G', 'B'].includes(c));
+      const output = document.getElementById("output");
+
+      if (history.length < 4) {
+        output.innerText = "Enter at least 4 values (R, G, B)";
         return;
       }
-      const last = input[input.length - 1];
-      let prediction = (last === 'R') ? 'G' : 'R';
-      const confidence = Math.floor(60 + Math.random() * 40);
-      document.getElementById("result").innerText = `Next Prediction: ${prediction} (${confidence}%)`;
+
+      // Check for alternating pattern
+      let isAlternating = true;
+      for (let i = 2; i < history.length; i++) {
+        if (history[i] !== history[i - 2]) {
+          isAlternating = false;
+          break;
+        }
+      }
+
+      let prediction = "";
+      let confidence = 70;
+      let reason = "";
+
+      if (isAlternating) {
+        prediction = history[history.length - 2];
+        confidence = 95;
+        reason = "Alternating pattern detected";
+      } else {
+        // Count last 3
+        const last = history.slice(-3);
+        const count = { R: 0, G: 0, B: 0 };
+        last.forEach(c => count[c]++);
+        prediction = Object.entries(count).sort((a, b) => b[1] - a[1])[0][0];
+        confidence = 75;
+        reason = "Recent trend analysis";
+      }
+
+      output.innerText = `Next: ${prediction}\nConfidence: ${confidence}%\nReason: ${reason}`;
     }
   </script>
 </body>
