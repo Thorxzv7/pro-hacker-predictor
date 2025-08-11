@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Pro Hacker Predictor</title>
+  <title>Pro Hacker Predictor</titl
   <style>
     body {
       background-color: #000;
@@ -72,13 +72,4 @@
         const last = history.slice(-3);
         const count = { R: 0, G: 0, B: 0 };
         last.forEach(c => count[c]++);
-        prediction = Object.entries(count).sort((a, b) => b[1] - a[1])[0][0];
-        confidence = 75;
-        reason = "Recent trend analysis";
-      }
-
-      output.innerText = `Next: ${prediction}\nConfidence: ${confidence}%\nReason: ${reason}`;
-    }
-  </script>
-</body>
-</html>
+        prediction = 
