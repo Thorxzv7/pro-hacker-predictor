@@ -1,75 +1,326 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-  <title>Pro Hacker Predictor</titl
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pro Hacker Predictor — Pro Upgrade</title>
   <style>
+    :root {
+      --bg: #050505;
+      --neon: #00ff88;
+      --muted: #6a6a6a;
+      --card: #0b0b0b;
+      --accent: #00d1ff;
+      --danger: #ff4d4d;
+    }
     body {
-      background-color: #000;
-      color: #0f0;
-      font-family: monospace;
-      text-align: center;
-      padding-top: 100px;
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(circle at 10% 10%, #071018 0%, var(--bg) 60%);
+      color: var(--neon);
+      display: flex;
+      min-height: 100vh;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 28px;
     }
-    input, button {
-      padding: 10px;
-      font-size: 18px;
-      border-radius: 8px;
-      border: none;
+    .app {
+      width: 980px;
+      max-width: calc(100% - 40px);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+      padding: 22px;
+      border: 1px solid rgba(0,255,136,0.06);
     }
-    input {
-      width: 300px;
+    .header {
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-bottom: 18px;
     }
-    button {
-      background-color: #0f0;
-      color: #000;
-      cursor: pointer;
+    .logo {
+      width:56px;height:56px;border-radius:8px;background:linear-gradient(135deg,#001f2a,#00303f);
+      display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--neon);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.03);
     }
-    #output {
-      margin-top: 30px;
-      font-size: 22px;
-      color: #fff;
-    }
+    h1 { margin:0; font-size:18px; color:var(--neon); }
+    p.sub { margin:0; font-size:12px; color:var(--muted); }
+
+    .row { display:flex; gap:14px; margin-top:16px; }
+    .col { background:var(--card); padding:14px; border-radius:8px; flex:1; border:1px solid rgba(255,255,255,0.02); }
+    label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+    input[type="text"] { width:100%; padding:10px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.03); background:#020202; color:var(--neon); }
+    button { margin-top:8px; padding:10px 12px; border-radius:8px; border:none; cursor:pointer; background:var(--neon); color:#001; font-weight:600; }
+    small.hint { color:var(--muted); display:block; margin-top:8px; font-size:12px; }
+
+    .out-title { color:var(--accent); font-weight:700; margin-bottom:8px; }
+    .pred-list { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;}
+    .pred { padding:10px 12px; border-radius:8px; background:rgba(0,255,136,0.06); color:var(--neon); min-width:120px; text-align:center; }
+    .conf { font-size:20px; font-weight:800; display:block; margin-top:6px; }
+    .meta { font-size:13px; color:var(--muted); margin-top:6px; }
+
+    #chart { width:100%; height:120px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)); border-radius:8px; margin-top:12px; }
+    .bad { color:var(--danger); }
+    .good { color:#7cffc0; }
+
+    .footer { margin-top:14px; font-size:12px; color:var(--muted); text-align:right; }
+
+    @media (max-width:900px){ .row{flex-direction:column} }
   </style>
 </head>
 <body>
-  <h1>🧠 Pro Hacker Predictor</h1>
-  <p>Enter recent results (e.g., R,G,B,R,G):</p>
-  <input type="text" id="historyInput" placeholder="R,G,B,R,G" />
-  <br><br>
-  <button onclick="predict()">🔍 Predict</button>
-  <div id="output"></div>
+  <div class="app">
+    <div class="header">
+      <div class="logo">PH</div>
+      <div>
+        <h1>Pro Hacker Predictor — Pro Upgrade</h1>
+        <p class="sub">Enter recent history (R,G,B) and get 3 predictions + confidence, trend, streak detection.</p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col" style="flex:0.9">
+        <label>Enter recent results (comma separated). Example: <code>R,G,B,G,R,R,B,G</code></label>
+        <input id="historyInput" type="text" placeholder="e.g. R,G,B,G,R,R" />
+        <small class="hint">Allowed tokens: R, G, B (case-insensitive). Minimum 4 values recommended.</small>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button id="predictBtn">Predict Next (3)</button>
+          <button id="clearBtn" style="background:transparent;color:var(--neon);border:1px solid rgba(255,255,255,0.03);">Clear</button>
+        </div>
+        <div id="chart"></div>
+      </div>
+
+      <div class="col" style="flex:0.6">
+        <div class="out-title">Predictions</div>
+        <div id="predictions" class="pred-list">
+          <!-- prediction cards -->
+        </div>
+
+        <div class="out-title" style="margin-top:12px">Diagnostics</div>
+        <div id="diagnostics" class="meta">
+          <!-- diagnostics -->
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Pro Hacker — upgraded logic • Last update: live</div>
+  </div>
 
   <script>
-    function predict() {
-      const input = document.getElementById("historyInput").value.toUpperCase().trim();
-      const history = input.split(',').filter(c => ['R', 'G', 'B'].includes(c));
-      const output = document.getElementById("output");
+    // Helper: sanitize & parse
+    function parseHistory(raw) {
+      if (!raw) return [];
+      return raw.toUpperCase()
+        .split(/[,;\s]+/)
+        .map(s => s.trim())
+        .filter(s => s === 'R' || s === 'G' || s === 'B');
+    }
 
-      if (history.length < 4) {
-        output.innerText = "Enter at least 4 values (R, G, B)";
-        return;
+    // Stats from history
+    function computeStats(history) {
+      const counts = { R:0, G:0, B:0 };
+      history.forEach(h => { if (counts[h] !== undefined) counts[h]++; });
+      const total = history.length;
+      const freqs = { R: counts.R/total || 0, G: counts.G/total || 0, B: counts.B/total || 0 };
+      // last runs (streak detection)
+      let streakColor = null, streakLen = 0;
+      for (let i = history.length-1; i >= 0; i--) {
+        if (!streakColor) { streakColor = history[i]; streakLen = 1; }
+        else if (history[i] === streakColor) streakLen++;
+        else break;
       }
-
-      // Check for alternating pattern
+      // alternating check (e.g., R,G,R,G)
       let isAlternating = true;
-      for (let i = 2; i < history.length; i++) {
-        if (history[i] !== history[i - 2]) {
-          isAlternating = false;
-          break;
+      if (history.length < 4) isAlternating = false;
+      else {
+        for (let i = 2; i < history.length; i++) {
+          if (history[i] !== history[i-2]) { isAlternating = false; break; }
         }
       }
+      // recent window trends
+      const window = 8;
+      const lastWindow = history.slice(-window);
+      const windowCounts = { R:0, G:0, B:0 };
+      lastWindow.forEach(x => { if (windowCounts[x] !== undefined) windowCounts[x]++; });
+      return { counts, freqs, total, streakColor, streakLen, isAlternating, lastWindow, windowCounts };
+    }
 
-      let prediction = "";
-      let confidence = 70;
-      let reason = "";
+    // Basic prediction engine combining multiple heuristics
+    function predictNext(history, stats) {
+      // Scoring for each color based on different rules -> sum weighted scores
+      const colors = ['R','G','B'];
+      const scores = { R:0, G:0, B:0 };
 
-      if (isAlternating) {
-        prediction = history[history.length - 2];
-        confidence = 95;
-        reason = "Alternating pattern detected";
-      } else {
-        // Count last 3
-        const last = history.slice(-3);
-        const count = { R: 0, G: 0, B: 0 };
-        last.forEach(c => count[c]++);
-        prediction = 
+      // 1) Frequency weight (recent frequency)
+      colors.forEach(c => { scores[c] += stats.freqs[c] * 50; });
+
+      // 2) Anti-streak (if streakLen >=3, reduce chance of same continuing)
+      if (stats.streakLen >= 3 && stats.streakColor) {
+        scores[stats.streakColor] -= 30; // discourage
+      } else if (stats.streakLen === 2 && stats.streakColor) {
+        // small discourage
+        scores[stats.streakColor] -= 10;
+      }
+
+      // 3) Alternating pattern: if true, prefer color matching pattern
+      if (stats.isAlternating && history.length >= 2) {
+        const predicted = history[history.length - 2]; // pattern predicts this
+        scores[predicted] += 30;
+      }
+
+      // 4) Window trend boost: if in last 8 results a color is dominating
+      const windowTotal = stats.lastWindow.length || 1;
+      Object.keys(stats.windowCounts).forEach(c => {
+        const frac = stats.windowCounts[c] / windowTotal;
+        scores[c] += frac * 25;
+      });
+
+      // 5) Small randomness to break ties / add exploration
+      colors.forEach(c => { scores[c] += Math.random()*6; });
+
+      // normalize into probabilities
+      const raw = colors.map(c => Math.max(0, scores[c])); // avoid negatives
+      const sum = raw.reduce((a,b)=>a+b,0) || 1;
+      const probs = {};
+      colors.forEach((c,i) => probs[c] = raw[i] / sum);
+
+      // produce 3-step predictions by simulating greedy + slight stochasticity
+      const preds = [];
+      let simHistory = history.slice();
+      for (let step=0; step<3; step++) {
+        // recompute simple local scores for simHistory
+        const s = computeStats(simHistory);
+        const pickScores = { R:0, G:0, B:0 };
+        colors.forEach(c => { pickScores[c] += s.freqs[c]*50; });
+        if (s.streakLen >= 3 && s.streakColor) pickScores[s.streakColor] -= 30;
+        if (s.isAlternating && simHistory.length >=2) {
+          const predicted = simHistory[simHistory.length-2];
+          pickScores[predicted] += 24;
+        }
+        // window
+        const lw = simHistory.slice(-8);
+        const lwCounts = { R:0,G:0,B:0 };
+        lw.forEach(x=>{ if(lwCounts[x]!==undefined) lwCounts[x]++; });
+        const wtot = lw.length || 1;
+        Object.keys(lwCounts).forEach(c => pickScores[c] += (lwCounts[c]/wtot)*20);
+        // randomness
+        colors.forEach(c => pickScores[c] += Math.random()*6);
+
+        const maxC = colors.reduce((a,b) => pickScores[a] > pickScores[b] ? a : b, 'R');
+        preds.push({ color: maxC, score: pickScores[maxC] });
+        simHistory.push(maxC); // simulate chosen
+      }
+
+      return { probs, preds };
+    }
+
+    // map to user-facing confidence %
+    function scoreToConfidence(prob) {
+      return Math.round(prob * 100);
+    }
+
+    // draw small bar chart for last N
+    function drawChart(history) {
+      const canvasId = 'chart-canvas';
+      const container = document.getElementById('chart');
+      container.innerHTML = '';
+      const c = document.createElement('canvas');
+      c.id = canvasId;
+      c.width = container.clientWidth;
+      c.height = 120;
+      container.appendChild(c);
+      const ctx = c.getContext('2d');
+      // background
+      ctx.clearRect(0,0,c.width,c.height);
+      // compute last 20
+      const last = history.slice(-20);
+      const len = last.length || 1;
+      const barW = Math.max(6, Math.floor(c.width / Math.max(12, last.length)));
+      const gap = 4;
+      for (let i=0;i<last.length;i++) {
+        const val = 1; // each event equal height (we just show color sequence)
+        const x = i*(barW+gap) + 8;
+        const barH = Math.floor((c.height - 20) * val);
+        const y = c.height - barH - 10;
+        const color = last[i] === 'R' ? '#ff6b6b' : (last[i] === 'G' ? '#7cffc0' : '#6ac6ff');
+        // shadow
+        ctx.fillStyle = 'rgba(255,255,255,0.02)';
+        ctx.fillRect(x, y-2, barW, barH+4);
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, barW, barH);
+      }
+      // legend
+      ctx.font = '12px Inter, Arial';
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillText('Recent sequence (last ' + last.length + ') — right = latest', 8, 12);
+      // small ticks
+    }
+
+    // UI updates
+    const predictBtn = document.getElementById('predictBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const predictionsEl = document.getElementById('predictions');
+    const diagnosticsEl = document.getElementById('diagnostics');
+
+    function showError(msg) {
+      diagnosticsEl.innerHTML = '<span class="bad">' + msg + '</span>';
+    }
+
+    function renderPredictions(resultObj, stats) {
+      predictionsEl.innerHTML = '';
+      // Top single-step probabilities from probs
+      const probEntries = Object.entries(resultObj.probs).sort((a,b)=>b[1]-a[1]);
+      // Overall best guess
+      const best = probEntries[0];
+
+      // Render three step preds
+      resultObj.preds.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.className = 'pred';
+        const conf = Math.min(98, Math.round((p.score / (p.score + 10)) * 100)); // scale-ish
+        div.innerHTML = `<div style="font-size:14px;opacity:0.9">#${i+1} Prediction</div>
+                         <div style="font-size:30px;margin-top:6px">${p.color}</div>
+                         <div class="conf">${conf}%</div>
+                         <div style="font-size:12px;color:${conf>60?'#bfffdc':'#ffb3b3'}">confidence</div>`;
+        predictionsEl.appendChild(div);
+      });
+
+      // Diagnostics
+      const freqHtml = `Frequencies — R: ${Math.round(stats.freqs.R*100)}% , G: ${Math.round(stats.freqs.G*100)}% , B: ${Math.round(stats.freqs.B*100)}%`;
+      const streakHtml = stats.streakLen > 0 ? `Streak: ${stats.streakLen} x ${stats.streakColor}` : 'Streak: none';
+      const altHtml = stats.isAlternating ? '<span class="good">Alternating pattern detected</span>' : 'No alternating pattern';
+      const topProb = Math.round(probEntries[0][1]*100);
+      diagnosticsEl.innerHTML = `
+        <div>${freqHtml}</div>
+        <div style="margin-top:6px">${streakHtml}</div>
+        <div style="margin-top:6px">${altHtml}</div>
+        <div style="margin-top:8px">Top immediate probability: <strong>${probEntries[0][0]}</strong> (${topProb}%)</div>
+        <div style="margin-top:8px;color:var(--muted);font-size:12px">Note: This is a statistical helper. Use risk control & don't rely 100% on automation.</div>
+      `;
+    }
+
+    predictBtn.addEventListener('click', () => {
+      const raw = document.getElementById('historyInput').value;
+      const history = parseHistory(raw);
+      if (history.length < 4) { showError('Enter at least 4 valid tokens like R,G,B,G'); return; }
+      const stats = computeStats(history);
+      const result = predictNext(history, stats);
+      renderPredictions(result, stats);
+      drawChart(history);
+    });
+
+    clearBtn.addEventListener('click', () => {
+      document.getElementById('historyInput').value = '';
+      predictionsEl.innerHTML = '';
+      diagnosticsEl.innerHTML = '';
+      document.getElementById('chart').innerHTML = '';
+    });
+
+    // Quick sample prefill for demo
+    document.getElementById('historyInput').value = 'R,G,B,G,R,R,B,G,R';
+    // Optionally auto-run once:
+    // predictBtn.click();
+  </script>
+</body>
+</html>
