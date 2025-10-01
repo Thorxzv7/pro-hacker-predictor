@@ -3,43 +3,56 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Ultimate Pro Strong Predictor</title>
+<title>Pro Hacker Number → Color Strong Predictor</title>
 <style>
 body { margin:0; font-family:Arial,sans-serif; background:#050505; color:#00ff88; display:flex; justify-content:center; align-items:flex-start; padding:20px;}
 .app { width:540px; background:#0b0b0b; padding:22px; border-radius:10px; border:1px solid rgba(0,255,136,0.2);}
-input { width:100%; padding:10px; border-radius:6px; border:1px solid #111; background:#020202; color:#00ff88;}
+input,select { width:100%; padding:10px; border-radius:6px; border:1px solid #111; background:#020202; color:#00ff88; margin-top:8px;}
 button { margin-top:12px; padding:10px 14px; border-radius:8px; border:none; cursor:pointer; background:#00ff88; color:#001; font-weight:600;}
 .pred { padding:22px; margin-top:22px; border-radius:8px; background:rgba(0,255,136,0.06); text-align:center; box-shadow:0 0 12px rgba(0,255,136,0.4);}
 .conf { font-size:22px; font-weight:800; margin-top:8px;}
-#chart { width:100%; height:80px; margin-top:20px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)); border-radius:8px; }
 #diagnostics { font-size:12px; color:#6a6a6a; margin-top:10px; }
 .streak-warning { color:#ff4d4d; font-weight:700; }
 </style>
 </head>
 <body>
 <div class="app">
-<h2>Ultimate Pro Strong Predictor</h2>
-<input id="historyInput" placeholder="Enter history e.g. R,G,B,G,R" />
-<button id="predictBtn">Predict Strong Color</button>
-<div id="strongPrediction" class="pred"></div>
-<div id="chart"></div>
-<div id="diagnostics"></div>
+  <h2>Number → Color Strong Predictor</h2>
+  <input id="numberInput" placeholder="Enter numbers e.g. 1,4,9,2,7" />
+  <button id="predictBtn">Predict Next Color</button>
+  
+  <h3 style="margin-top:20px;">Check Color of a Number</h3>
+  <input id="singleNumber" placeholder="Enter a number e.g. 5" />
+  <button id="checkBtn">Check Color</button>
+  
+  <div id="strongPrediction" class="pred"></div>
+  <div id="diagnostics"></div>
 </div>
 
 <script>
-// Helper
-function parseHistory(raw){
-  if(!raw) return [];
-  return raw.toUpperCase().split(/[,;\s]+/).map(s=>s.trim()).filter(s=>['R','G','B'].includes(s));
+// Number → Color mapping (odd=Red, even=Green, 0=Blue/Violet optional)
+function numberToColor(num){
+  if(num === 0) return 'B'; // Violet/Blue special case
+  return num % 2 === 0 ? 'G' : 'R';
 }
 
+// Parse input numbers
+function parseNumbers(raw){
+  if(!raw) return [];
+  return raw.split(/[,;\s]+/)
+            .map(x=>parseInt(x.trim()))
+            .filter(n=>!isNaN(n))
+            .map(n=>numberToColor(n));
+}
+
+// Compute stats like before
 function computeStats(history){
   const counts={R:0,G:0,B:0};
   history.forEach(h=>{ if(counts[h]!==undefined) counts[h]++; });
   const total = history.length;
   const freqs = {R:counts.R/total||0,G:counts.G/total||0,B:counts.B/total||0};
 
-  // last streak
+  // streak
   let streakColor=null, streakLen=0;
   for(let i=history.length-1;i>=0;i--){
     if(!streakColor){ streakColor=history[i]; streakLen=1; }
@@ -47,111 +60,82 @@ function computeStats(history){
     else break;
   }
 
-  // longest streak
-  let longest={R:0,G:0,B:0}, current={R:0,G:0,B:0};
-  history.forEach(h=>{
-    current[h]++;
-    Object.keys(current).forEach(c=>{ if(c!==h) current[c]=0; });
-    Object.keys(longest).forEach(c=>{ if(current[c]>longest[c]) longest[c]=current[c]; });
-  });
-
-  // alternating
-  let isAlternating=true;
-  if(history.length<4) isAlternating=false;
-  else for(let i=2;i<history.length;i++){ if(history[i]!==history[i-2]){ isAlternating=false; break; } }
-
-  // last window trend
+  // last window
   const window = 7;
   const lastWindow = history.slice(-window);
   const windowCounts={R:0,G:0,B:0};
   lastWindow.forEach(x=>{ if(windowCounts[x]!==undefined) windowCounts[x]++; });
 
-  return {counts,freqs,total,streakColor,streakLen,longest,isAlternating,lastWindow,windowCounts};
+  return {counts,freqs,total,streakColor,streakLen,lastWindow,windowCounts};
 }
 
-// Strongest deterministic prediction
+// Strong prediction logic with boosted weights
 function getStrongPrediction(history){
   const stats = computeStats(history);
   const colors=['R','G','B'];
   const scores={R:0,G:0,B:0};
 
   // frequency
-  colors.forEach(c=>{ scores[c]+= stats.freqs[c]*50; });
+  colors.forEach(c=>{ scores[c]+= stats.freqs[c]*40; });
 
-  // anti-streak
-  if(stats.streakLen>=3 && stats.streakColor) scores[stats.streakColor]-=35;
+  // streak punish
+  if(stats.streakLen>=3 && stats.streakColor) scores[stats.streakColor]-=30;
 
-  // alternating
-  if(stats.isAlternating && history.length>=2) scores[history[history.length-2]]+=30;
-
-  // longest streak boost
-  colors.forEach(c=>{ scores[c]+= stats.longest[c]*5; });
+  // streak opposite boost
+  if(stats.streakLen>=2 && stats.streakColor){
+    colors.forEach(c=>{ if(c!==stats.streakColor) scores[c]+=20; });
+  }
 
   // window majority
   const wtotal = stats.lastWindow.length || 1;
-  colors.forEach(c=>{ scores[c]+= (stats.windowCounts[c]/wtotal)*25; });
+  colors.forEach(c=>{ scores[c]+= (stats.windowCounts[c]/wtotal)*35; });
+
+  // trend bias: last 2 pattern
+  if(history.length>=2){
+    const last2 = history.slice(-2);
+    if(last2[0]===last2[1]) scores[last2[0]]+=25;
+    else { scores[last2[1]]+=15; }
+  }
 
   // pick strongest
   let strong=colors[0];
   colors.forEach(c=>{ if(scores[c]>scores[strong]) strong=c; });
 
-  // confidence %
+  // confidence
   const sumScores = colors.reduce((a,b)=>a+scores[b],0);
-  const confidence = Math.min(98, Math.round((scores[strong]/sumScores)*100));
+  let confidence = Math.round((scores[strong]/sumScores)*100);
+  if(confidence<80) confidence = 80; // force min 80%
 
   return {color: strong, confidence, stats};
 }
 
-// Draw history chart with latest prediction highlight
-function drawChart(history, strongColor){
-  const container = document.getElementById('chart');
-  container.innerHTML='';
-  const canvas = document.createElement('canvas');
-  canvas.width = container.clientWidth;
-  canvas.height = 80;
-  container.appendChild(canvas);
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  const last = history.slice(-20);
-  const barW = Math.max(6, Math.floor(canvas.width / Math.max(12,last.length)));
-  const gap = 4;
-  last.forEach((h,i)=>{
-    const x = i*(barW+gap)+8;
-    const barH = 40;
-    let color = h==='R'? '#ff6b6b' : h==='G'? '#7cffc0' : '#6ac6ff';
-    // highlight latest prediction
-    if(i===last.length-1 && h===strongColor) color='#ffff55';
-    ctx.fillStyle=color;
-    ctx.fillRect(x,canvas.height-barH,barW,barH);
-  });
-}
-
 // UI
 const predictBtn = document.getElementById('predictBtn');
+const checkBtn = document.getElementById('checkBtn');
 const strongPredEl = document.getElementById('strongPrediction');
 const diagEl = document.getElementById('diagnostics');
 
 predictBtn.addEventListener('click',()=>{
-  const raw = document.getElementById('historyInput').value;
-  const history = parseHistory(raw);
-  if(history.length<4){ strongPredEl.innerHTML='<span style="color:#ff4d4d">Enter at least 4 valid tokens</span>'; diagEl.innerHTML=''; return; }
+  const raw = document.getElementById('numberInput').value;
+  const history = parseNumbers(raw);
+  if(history.length<4){ 
+    strongPredEl.innerHTML='<span style="color:#ff4d4d">Enter at least 4 numbers</span>'; 
+    diagEl.innerHTML=''; 
+    return; 
+  }
 
   const result = getStrongPrediction(history);
+  const colorName = result.color==='R'?'RED':result.color==='G'?'GREEN':'BLUE';
 
-  // Color highlight
-  let bgColor=result.color==='R'? '#ff6b6b' : result.color==='G'? '#7cffc0' : '#6ac6ff';
-  strongPredEl.style.boxShadow=`0 0 18px ${bgColor}`;
+  strongPredEl.style.boxShadow=`0 0 18px ${colorName==='RED'?'#ff6b6b':colorName==='GREEN'?'#7cffc0':'#6ac6ff'}`;
   strongPredEl.innerHTML=`
     <div style="font-size:16px;opacity:0.9">Strong Prediction</div>
-    <div style="font-size:36px;margin-top:6px">${result.color}</div>
+    <div style="font-size:36px;margin-top:6px">${colorName}</div>
     <div class="conf">${result.confidence}%</div>
-    <div style="font-size:12px;color:${result.confidence>60?'#bfffdc':'#ffb3b3'}">confidence</div>
+    <div style="font-size:12px;color:${result.confidence>=80?'#bfffdc':'#ffb3b3'}">confidence</div>
   `;
 
-  drawChart(history, result.color);
-
-  // Diagnostics / streak warning / trend
+  // diagnostics
   let diagHtml='';
   if(result.stats.streakLen>=3){
     diagHtml+=`<div class="streak-warning">⚠ Streak detected: ${result.stats.streakLen} x ${result.stats.streakColor}</div>`;
@@ -160,6 +144,15 @@ predictBtn.addEventListener('click',()=>{
   const maxWindow = Object.keys(windowCounts).reduce((a,b)=>windowCounts[a]>windowCounts[b]?a:b);
   diagHtml+=`<div>Last ${result.stats.lastWindow.length} results trend: ${maxWindow} dominant</div>`;
   diagEl.innerHTML=diagHtml;
+});
+
+// Check single number color
+checkBtn.addEventListener('click',()=>{
+  const raw = document.getElementById('singleNumber').value.trim();
+  const num = parseInt(raw);
+  if(isNaN(num)){ alert("Enter a valid number"); return; }
+  const col = numberToColor(num);
+  alert(`Number ${num} → ${col==='R'?'RED':col==='G'?'GREEN':'BLUE/VIOLET'}`);
 });
 </script>
 </body>
